@@ -1,0 +1,21 @@
+# Marketing Analytics Dashboard — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core data manipulation
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualisation — static charts
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Visualisation — interactive & dashboard
+plotly>=5.15.0
+dash>=2.14.0
+dash-bootstrap-components>=1.5.0
+
+# Statistical analysis
+scipy>=1.11.0
+
+# Optional — faster CSV reading (recommended for large files)
+# pyarrow>=12.0.0

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marketing Campaign Analytics Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,Arial,sans-serif;background:#F2F4F8;color:#1a1a1a;min-height:100vh}
+  :root{
+    --blue:#185FA5;--green:#3B6D11;--amber:#BA7517;
+    --purple:#534AB7;--orange:#D85A30;--red:#A32D2D;
+    --card:#ffffff;--border:#E2E6EF;--text2:#666;--radius:12px;
+  }
+
+  /* ── header ─────────────────────────────────────────────────────────── */
+  .header{background:linear-gradient(135deg,#185FA5 0%,#0C3C78 100%);
+          padding:24px 32px;display:flex;align-items:center;justify-content:space-between}
+  .header h1{color:#fff;font-size:22px;font-weight:700;letter-spacing:-.3px}
+  .header p{color:rgba(255,255,255,.75);font-size:13px;margin-top:2px}
+  .header-badge{background:rgba(255,255,255,.15);border-radius:20px;
+                padding:6px 14px;color:#fff;font-size:12px}
+
+  /* ── filters ────────────────────────────────────────────────────────── */
+  .filter-bar{background:#fff;border-bottom:1px solid var(--border);
+              padding:12px 32px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .filter-bar label{font-size:12px;font-weight:600;color:var(--text2);
+                    text-transform:uppercase;letter-spacing:.4px;margin-right:4px}
+  .filter-bar select,.filter-bar input[type=range]{font-size:13px;padding:6px 10px;
+    border:1px solid var(--border);border-radius:7px;background:#fafbfc;
+    color:#333;cursor:pointer;outline:none}
+  .filter-bar select:focus{border-color:var(--blue)}
+  .btn-reset{background:var(--blue);color:#fff;border:none;border-radius:7px;
+             padding:7px 16px;font-size:13px;cursor:pointer;margin-left:auto}
+  .btn-reset:hover{background:#0d4a8a}
+
+  /* ── tabs ───────────────────────────────────────────────────────────── */
+  .tab-bar{background:#fff;border-bottom:1px solid var(--border);
+           padding:0 32px;display:flex;gap:0;overflow-x:auto}
+  .tab{padding:14px 20px;font-size:13px;font-weight:500;cursor:pointer;
+       border:none;background:transparent;color:var(--text2);
+       border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+  .tab:hover:not(.active){color:#333;background:#f9fafc}
+
+  /* ── content ────────────────────────────────────────────────────────── */
+  .page{display:none;padding:24px 32px;animation:fadeIn .2s ease}
+  .page.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── KPI cards ──────────────────────────────────────────────────────── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+            gap:12px;margin-bottom:20px}
+  .kpi-card{background:var(--card);border-radius:var(--radius);padding:18px 20px;
+            border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .kpi-label{font-size:10.5px;color:var(--text2);text-transform:uppercase;
+             letter-spacing:.5px;margin-bottom:7px}
+  .kpi-value{font-size:26px;font-weight:700;color:#111;line-height:1}
+  .kpi-sub{font-size:11px;color:#aaa;margin-top:5px}
+
+  /* ── chart cards ────────────────────────────────────────────────────── */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+  .chart-card{background:var(--card);border-radius:var(--radius);padding:0;
+              border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04);
+              overflow:hidden}
+  .chart-card.full{grid-column:1/-1}
+
+  /* ── platform ranking table ─────────────────────────────────────────── */
+  .rank-table{width:100%;border-collapse:collapse;font-size:13px}
+  .rank-table th{background:#f5f7fb;color:var(--text2);font-weight:600;
+                 text-align:left;padding:10px 14px;border-bottom:2px solid var(--border);
+                 font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  .rank-table td{padding:10px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+  .rank-table tr:last-child td{border-bottom:none}
+  .rank-table tr:hover td{background:#fafbfd}
+  .plat-dot{display:inline-block;width:9px;height:9px;border-radius:50%;
+            margin-right:7px;vertical-align:middle}
+
+  /* ── insight boxes ─────────────────────────────────────────────────── */
+  .insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+  @media(max-width:900px){.insight-grid{grid-template-columns:1fr}}
+  .insight{background:var(--card);border-radius:var(--radius);padding:18px 20px;
+           border:1px solid var(--border);border-left:4px solid var(--blue)}
+  .insight h4{font-size:13px;font-weight:600;margin-bottom:7px;color:#111}
+  .insight p{font-size:12.5px;color:#555;line-height:1.65}
+  .badge{display:inline-block;font-size:10.5px;padding:2px 9px;border-radius:10px;
+         font-weight:600;margin-left:6px;vertical-align:middle}
+  .badge-g{background:#E6F4EA;color:#2D6A0F}.badge-r{background:#FDEAEA;color:#9B1C1C}
+  .badge-y{background:#FEF3E2;color:#8A4F00}
+
+  /* ── score bar ─────────────────────────────────────────────────────── */
+  .score-bar-wrap{background:#f0f0f0;border-radius:4px;height:10px;width:100%;overflow:hidden;display:inline-block;vertical-align:middle;max-width:160px}
+  .score-bar{height:10px;border-radius:4px}
+
+  /* ── footer ─────────────────────────────────────────────────────────── */
+  footer{text-align:center;color:#bbb;font-size:11px;padding:20px;border-top:1px solid var(--border);background:#fff}
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<div class="header">
+  <div>
+    <h1>📊 Marketing Campaign Analytics</h1>
+    <p>Interactive performance dashboard — 6 platforms · Oct 2023 – Oct 2024</p>
+  </div>
+  <span class="header-badge">1,881 campaigns · $47.0M spend</span>
+</div>
+
+<!-- ── Filters ────────────────────────────────────────────────────────────── -->
+<div class="filter-bar">
+  <label>Platform</label>
+  <select id="sel-platform" multiple size="1" style="min-width:180px">
+    <option value="all" selected>All Platforms</option>
+    <option value="Google">Google</option>
+    <option value="Facebook">Facebook</option>
+    <option value="Email">Email</option>
+    <option value="LinkedIn">LinkedIn</option>
+    <option value="Instagram">Instagram</option>
+    <option value="Twitter">Twitter</option>
+  </select>
+  <label>Date Range</label>
+  <select id="sel-date">
+    <option value="all">All time (Oct 2023 – Oct 2024)</option>
+    <option value="q4_2023">Q4 2023 (Oct–Dec)</option>
+    <option value="q1_2024">Q1 2024 (Jan–Mar)</option>
+    <option value="q2_2024">Q2 2024 (Apr–Jun)</option>
+    <option value="q3_2024">Q3 2024 (Jul–Sep)</option>
+    <option value="oct_2024">Oct 2024</option>
+  </select>
+  <button class="btn-reset" onclick="resetFilters()">Reset Filters</button>
+</div>
+
+<!-- ── Tabs ───────────────────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('overview',this)">Executive Overview</button>
+  <button class="tab" onclick="showTab('perf',this)">Performance Analysis</button>
+  <button class="tab" onclick="showTab('trend',this)">Trend Analysis</button>
+  <button class="tab" onclick="showTab('rank',this)">Platform Ranking</button>
+  <button class="tab" onclick="showTab('insights',this)">Strategic Insights</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1 — EXECUTIVE OVERVIEW                                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="page-overview" class="page active">
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Total Campaigns</div><div class="kpi-value" id="kv-camp">1,881</div><div class="kpi-sub">cleaned records</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Clicks</div><div class="kpi-value" id="kv-clicks">18.7M</div><div class="kpi-sub">across all platforms</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Conversions</div><div class="kpi-value" id="kv-conv">1.89M</div><div class="kpi-sub">successful outcomes</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Cost</div><div class="kpi-value" id="kv-cost">$47.0M</div><div class="kpi-sub">campaign spend</div></div>
+    <div class="kpi-card"><div class="kpi-label">Conv. Rate</div><div class="kpi-value" id="kv-cr">10.11%</div><div class="kpi-sub">overall</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg CPA</div><div class="kpi-value" id="kv-cpa">$24.92</div><div class="kpi-sub">cost / acquisition</div></div>
+  </div>
+  <div class="grid2">
+    <div class="chart-card"><div id="ch-conv-plat" style="height:380px"></div></div>
+    <div class="chart-card"><div id="ch-cost-plat" style="height:380px"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="chart-card"><div id="ch-donut" style="height:360px"></div></div>
+    <div class="chart-card"><div id="ch-cr-plat" style="height:360px"></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2 — PERFORMANCE ANALYSIS                                           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="page-perf" class="page">
+  <div class="grid2">
+    <div class="chart-card"><div id="ch-cpa" style="height:380px"></div></div>
+    <div class="chart-card"><div id="ch-cpc" style="height:380px"></div></div>
+  </div>
+  <div class="grid2">
+    <div class="chart-card"><div id="ch-top10-conv" style="height:420px"></div></div>
+    <div class="chart-card"><div id="ch-top10-cr" style="height:420px"></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3 — TREND ANALYSIS                                                  -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="page-trend" class="page">
+  <div class="chart-card" style="margin-bottom:16px"><div id="ch-trend-conv" style="height:320px"></div></div>
+  <div class="chart-card" style="margin-bottom:16px"><div id="ch-trend-cost" style="height:320px"></div></div>
+  <div class="chart-card"><div id="ch-trend-act" style="height:300px"></div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 4 — PLATFORM RANKING                                               -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="page-rank" class="page">
+  <div class="grid2" style="align-items:start">
+    <div class="chart-card"><div id="ch-score" style="height:400px"></div></div>
+    <div class="chart-card" style="padding:20px">
+      <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:12px">Score Formula</div>
+      <div style="background:#f5f7fb;border-radius:9px;padding:14px 16px;font-size:13px;color:#444;line-height:1.9;font-family:monospace">
+        Score =<br>
+        &nbsp;&nbsp;0.40 × norm(Conv. Rate)<br>
+        &nbsp;+0.30 × norm(Conversions)<br>
+        &nbsp;+0.20 × norm(Efficiency)<br>
+        &nbsp;−0.10 × norm(CPA)
+      </div>
+      <hr style="margin:16px 0;border-color:#eee">
+      <table class="rank-table" id="rank-tbl"></table>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="chart-card"><div id="ch-dur" style="height:360px"></div></div>
+    <div class="chart-card"><div id="ch-eff" style="height:360px"></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 5 — STRATEGIC INSIGHTS                                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="page-insights" class="page">
+  <div class="insight-grid">
+    <div class="insight" style="border-left-color:#185FA5">
+      <h4>Google is the top-ranked platform <span class="badge badge-g">Score 0.862</span></h4>
+      <p>Despite Facebook having a marginally higher raw conversion rate (10.47% vs 10.35%), Google scores highest due to the largest conversion volume (498K), the lowest CPA ($24.19), and stronger efficiency per dollar. Google should receive the largest budget allocation.</p>
+    </div>
+    <div class="insight" style="border-left-color:#A32D2D">
+      <h4>Twitter is the weakest performer <span class="badge badge-r">Score 0.006</span></h4>
+      <p>Twitter has the lowest conversion rate (9.21%), fewest conversions (193K), and near-zero performance score despite $4.77M in spend. Shifting 25–30% of Twitter's budget to Google is the single highest-return budget action available.</p>
+    </div>
+    <div class="insight" style="border-left-color:#1D9E75">
+      <h4>Longer campaigns yield more conversions</h4>
+      <p>Campaigns running over 12 months average 1,015 conversions vs 724 for campaigns under 30 days — a 40% advantage. Sustained always-on investment outperforms fragmented tactical short bursts for evergreen products and services.</p>
+    </div>
+    <div class="insight" style="border-left-color:#BA7517">
+      <h4>H2 2024 activity decline <span class="badge badge-y">Trend Alert</span></h4>
+      <p>Campaign launches peaked at 174 in February 2024 and dropped 34% to 115 by October 2024, driving a proportional fall in monthly conversions ($4.27M → $2.95M spend). Proactive H2 planning and minimum-activity thresholds by platform are essential.</p>
+    </div>
+    <div class="insight" style="border-left-color:#534AB7">
+      <h4>LinkedIn and Instagram are underutilised</h4>
+      <p>Both platforms show solid ~10% conversion rates with 232–233 campaigns each, well below Google/Facebook (467–489). Controlled budget uplifts (+20%) on these channels could yield proportional conversion gains and portfolio diversification.</p>
+    </div>
+    <div class="insight" style="border-left-color:#D85A30">
+      <h4>Zero-conversion campaigns waste budget</h4>
+      <p>Three campaigns generated 0 conversions while spending up to $20,611 each. Twitter accounts for the majority of bottom-10 performers. An early-warning rule — pause campaigns with >500 clicks and &lt;5 conversions after 14 days — would prevent wasted spend.</p>
+    </div>
+  </div>
+  <div class="chart-card" style="padding:24px">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:16px">📋 Action Priority List</h4>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <thead><tr style="background:#f5f7fb">
+        <th style="padding:9px 14px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Priority</th>
+        <th style="padding:9px 14px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Action</th>
+        <th style="padding:9px 14px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Impact</th>
+        <th style="padding:9px 14px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Effort</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">1</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">Shift 25–30% of Twitter budget to Google</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-g">High</span></td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-g">Low</span></td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">2</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">Protect Google + Facebook at 50–55% budget share</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-g">High</span></td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-g">Low</span></td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">3</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">Build H2 2025 campaign calendar in Q1 planning</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-g">High</span></td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-y">Medium</span></td></tr>
+        <tr><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">4</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">Implement early-warning pause rules</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-y">Medium</span></td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0"><span class="badge badge-g">Low</span></td></tr>
+        <tr><td style="padding:9px 14px">5</td><td style="padding:9px 14px">Pilot LinkedIn & Instagram +20% budget uplift test</td><td style="padding:9px 14px"><span class="badge badge-y">Medium</span></td><td style="padding:9px 14px"><span class="badge badge-g">Low</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<footer>Marketing Analytics Dashboard · Built with Plotly.js · Data: 1,881 campaigns across 6 platforms</footer>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Embedded dataset ────────────────────────────────────────────────────────
+const D = {"platforms": ["Google", "Facebook", "Email", "LinkedIn", "Instagram", "Twitter"], "campaigns_count": [489, 467, 253, 232, 233, 207], "total_conversions": [498563.0, 470369.0, 256368.0, 237106.0, 231287.0, 193304.0], "total_cost": [12062663.7, 12083189.69, 6391074.09, 5902288.55, 5818949.54, 4767507.84], "cr": [10.3534, 10.4727, 10.3164, 9.6131, 9.995, 9.2067], "cpc": [2.505, 2.6903, 2.5718, 2.393, 2.5147, 2.2707], "cpa": [24.19, 25.69, 24.93, 24.89, 25.16, 24.66], "score": [0.8623, 0.6179, 0.4257, 0.2352, 0.2219, 0.0058], "palette": {"Google": "#185FA5", "Facebook": "#3B6D11", "Email": "#BA7517", "LinkedIn": "#534AB7", "Instagram": "#D85A30", "Twitter": "#A32D2D"}, "monthly_labels": ["2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10"], "monthly_conv": [53104.0, 168122.0, 179018.0, 164940.0, 174846.0, 167354.0, 150772.0, 144513.0, 145224.0, 147079.0, 142024.0, 137885.0, 112116.0], "monthly_cost": [1183055.47, 3813770.04, 4130831.37, 4164234.98, 4272264.24, 3938164.85, 3924664.25, 3595745.97, 3918000.57, 3817366.65, 3514891.02, 3798732.22, 2953951.78], "monthly_camp": [52, 161, 167, 167, 174, 158, 153, 141, 156, 155, 139, 143, 115], "kpi_campaigns": 1881, "kpi_clicks": 18672035, "kpi_conversions": 1886997, "kpi_cost": 47025673.41, "kpi_cr": 10.11, "kpi_cpc": 2.5185, "kpi_cpa": 24.92, "top10_names": ["Worry Campaign", "Something Campaign", "Adult Campaign", "Base Campaign", "Simple Campaign", "Play Campaign", "Reflect Campaign", "What Campaign", "Our Campaign", "Position Campaign"], "top10_conv": [2000.0, 2000.0, 2000.0, 1999.0, 1997.0, 1995.0, 1995.0, 1991.0, 1990.0, 1989.0], "top10_plat": ["Google", "Email", "Facebook", "Facebook", "Twitter", "Facebook", "Google", "Email", "LinkedIn", "Google"], "top10cr_names": ["Many Campaign", "Interesting Campaign", "Stage Campaign", "Contain Campaign", "Affect Campaign", "Hour Campaign", "Exist Campaign", "Seven Campaign", "Weight Campaign", "Theory Campaign"], "top10cr_cr": [15125.0, 6268.18, 5087.1, 2547.73, 2491.84, 2450.0, 2334.62, 2295.0, 707.23, 592.38], "top10cr_plat": ["Instagram", "Facebook", "Facebook", "Google", "Email", "Facebook", "Facebook", "Instagram", "Email", "Google"], "dur_labels": ["< 1 Month", "1\u20133 Months", "3\u20136 Months", "6\u201312 Months", "> 12 Months"], "dur_avg_conv": [724, 979, 964, 999, 1015]};
+
+const PAL  = D.palette;
+const CFG  = {responsive:true, displayModeBar:false};
+const LAY  = {
+  paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+  font:{family:'Inter,Arial,sans-serif', size:12.5, color:'#222'},
+  margin:{t:50,r:20,b:45,l:20},
+  hoverlabel:{bgcolor:'white',font:{size:12},bordercolor:'#ddd'},
+};
+const GRID = {gridcolor:'#eaecf0', zerolinecolor:'#ddd'};
+
+function c(arr){ return arr.map(p=>PAL[p]||'#888'); }
+
+// ── filter state ────────────────────────────────────────────────────────────
+let activePlatforms = [...D.platforms];
+let activeDateRange = 'all';
+
+const DATE_RANGES = {
+  all:      [0, 12],
+  q4_2023:  [0,  2],
+  q1_2024:  [3,  5],
+  q2_2024:  [6,  8],
+  q3_2024:  [9, 11],
+  oct_2024: [12,12],
+};
+
+function filteredMonthly(){
+  const [s,e] = DATE_RANGES[activeDateRange] || [0,12];
+  return {
+    labels: D.monthly_labels.slice(s,e+1),
+    conv:   D.monthly_conv.slice(s,e+1),
+    cost:   D.monthly_cost.slice(s,e+1),
+    camp:   D.monthly_camp.slice(s,e+1),
+  };
+}
+
+function filteredPlatform(){
+  const idx = D.platforms.map((_,i)=>i).filter(i=>activePlatforms.includes(D.platforms[i]));
+  return {
+    platforms:    idx.map(i=>D.platforms[i]),
+    conversions:  idx.map(i=>D.total_conversions[i]),
+    cost:         idx.map(i=>D.total_cost[i]),
+    campaigns:    idx.map(i=>D.campaigns_count[i]),
+    cr:           idx.map(i=>D.cr[i]),
+    cpc:          idx.map(i=>D.cpc[i]),
+    cpa:          idx.map(i=>D.cpa[i]),
+    score:        idx.map(i=>D.score[i]),
+  };
+}
+
+// ── RENDER CHARTS ────────────────────────────────────────────────────────────
+
+function renderOverview(){
+  const fp = filteredPlatform();
+  const layout = h => ({...LAY, height:h, showlegend:false, xaxis:GRID, yaxis:GRID});
+
+  // Conversions bar
+  Plotly.newPlot('ch-conv-plat',[{
+    type:'bar', x:fp.platforms, y:fp.conversions,
+    marker:{color:c(fp.platforms), line:{width:0}},
+    text:fp.conversions.map(v=>(v/1000).toFixed(0)+'K'),
+    textposition:'outside',
+    hovertemplate:'%{x}<br>Conversions: %{y:,.0f}<extra></extra>',
+  }],{...layout(380), title:{text:'Total Conversions by Platform',font:{size:14,weight:600}}},CFG);
+
+  // Cost bar
+  Plotly.newPlot('ch-cost-plat',[{
+    type:'bar', x:fp.platforms, y:fp.cost,
+    marker:{color:c(fp.platforms)},
+    text:fp.cost.map(v=>'$'+(v/1e6).toFixed(1)+'M'),
+    textposition:'outside',
+    hovertemplate:'%{x}<br>Cost: $%{y:,.0f}<extra></extra>',
+  }],{...layout(380), title:{text:'Total Cost by Platform ($)',font:{size:14,weight:600}}},CFG);
+
+  // Donut
+  Plotly.newPlot('ch-donut',[{
+    type:'pie', labels:fp.platforms, values:fp.campaigns,
+    hole:0.55, marker:{colors:c(fp.platforms)},
+    hovertemplate:'%{label}<br>Campaigns: %{value}<br>%{percent}<extra></extra>',
+  }],{...LAY, height:360, title:{text:'Campaign Distribution',font:{size:14,weight:600}}},CFG);
+
+  // Conversion rate hbar
+  const crSorted = fp.platforms.map((_,i)=>i).sort((a,b)=>fp.cr[a]-fp.cr[b]);
+  Plotly.newPlot('ch-cr-plat',[{
+    type:'bar', orientation:'h',
+    y:crSorted.map(i=>fp.platforms[i]),
+    x:crSorted.map(i=>fp.cr[i]),
+    marker:{color:crSorted.map(i=>c(fp.platforms)[i])},
+    text:crSorted.map(i=>fp.cr[i].toFixed(2)+'%'),
+    textposition:'outside',
+    hovertemplate:'%{y}<br>CR: %{x:.2f}%<extra></extra>',
+  }],{...LAY, height:360, showlegend:false,
+      xaxis:{...GRID, title:'Conversion Rate (%)'},
+      yaxis:GRID,
+      title:{text:'Conversion Rate by Platform',font:{size:14,weight:600}}},CFG);
+}
+
+function renderPerf(){
+  const fp = filteredPlatform();
+  const layout = h => ({...LAY, height:h, showlegend:false, xaxis:GRID, yaxis:GRID});
+
+  Plotly.newPlot('ch-cpa',[{
+    type:'bar', x:fp.platforms, y:fp.cpa,
+    marker:{color:c(fp.platforms)},
+    text:fp.cpa.map(v=>'$'+v.toFixed(2)), textposition:'outside',
+    hovertemplate:'%{x}<br>CPA: $%{y:.2f}<extra></extra>',
+  }],{...layout(380), title:{text:'CPA by Platform ($)',font:{size:14,weight:600}}},CFG);
+
+  Plotly.newPlot('ch-cpc',[{
+    type:'bar', x:fp.platforms, y:fp.cpc,
+    marker:{color:c(fp.platforms)},
+    text:fp.cpc.map(v=>'$'+v.toFixed(4)), textposition:'outside',
+    hovertemplate:'%{x}<br>CPC: $%{y:.4f}<extra></extra>',
+  }],{...layout(380), title:{text:'CPC by Platform ($)',font:{size:14,weight:600}}},CFG);
+
+  // Top 10 conversions
+  const t10 = D.top10_names.map((_,i)=>i).sort((a,b)=>D.top10_conv[a]-D.top10_conv[b]);
+  Plotly.newPlot('ch-top10-conv',[{
+    type:'bar', orientation:'h',
+    y:t10.map(i=>D.top10_names[i]),
+    x:t10.map(i=>D.top10_conv[i]),
+    marker:{color:t10.map(i=>PAL[D.top10_plat[i]]||'#888')},
+    hovertemplate:'%{y}<br>Conversions: %{x:,.0f}<extra></extra>',
+  }],{...LAY, height:420, showlegend:false,
+      xaxis:{...GRID, title:'Conversions'},yaxis:GRID,
+      title:{text:'Top 10 by Conversions',font:{size:14,weight:600}}},CFG);
+
+  // Top 10 CR
+  const t10cr = D.top10cr_names.map((_,i)=>i).sort((a,b)=>D.top10cr_cr[a]-D.top10cr_cr[b]);
+  Plotly.newPlot('ch-top10-cr',[{
+    type:'bar', orientation:'h',
+    y:t10cr.map(i=>D.top10cr_names[i]),
+    x:t10cr.map(i=>D.top10cr_cr[i]),
+    marker:{color:t10cr.map(i=>PAL[D.top10cr_plat[i]]||'#888')},
+    hovertemplate:'%{y}<br>CR: %{x:.1f}%<extra></extra>',
+  }],{...LAY, height:420, showlegend:false,
+      xaxis:{...GRID, title:'Conversion Rate (%)'},yaxis:GRID,
+      title:{text:'Top 10 by Conversion Rate',font:{size:14,weight:600}}},CFG);
+}
+
+function renderTrend(){
+  const m = filteredMonthly();
+  const lineLayout = (title, ytitle) => ({
+    ...LAY, height:320,
+    title:{text:title, font:{size:14,weight:600}},
+    xaxis:{...GRID, tickangle:-35},
+    yaxis:{...GRID, title:ytitle},
+    showlegend:false,
+  });
+
+  Plotly.newPlot('ch-trend-conv',[{
+    type:'scatter', mode:'lines+markers',
+    x:m.labels, y:m.conv,
+    line:{color:'#185FA5',width:2.5},
+    marker:{size:7,color:'#185FA5'},
+    fill:'tozeroy', fillcolor:'rgba(24,95,165,.10)',
+    hovertemplate:'%{x}<br>Conversions: %{y:,.0f}<extra></extra>',
+  }], lineLayout('Monthly Conversion Trend','Total Conversions'), CFG);
+
+  Plotly.newPlot('ch-trend-cost',[{
+    type:'scatter', mode:'lines+markers',
+    x:m.labels, y:m.cost,
+    line:{color:'#1D9E75',width:2.5},
+    marker:{size:7,color:'#1D9E75'},
+    fill:'tozeroy', fillcolor:'rgba(29,158,117,.10)',
+    hovertemplate:'%{x}<br>Cost: $%{y:,.0f}<extra></extra>',
+  }], lineLayout('Monthly Cost Trend ($)','Cost (USD)'), CFG);
+
+  Plotly.newPlot('ch-trend-act',[{
+    type:'bar', x:m.labels, y:m.camp,
+    marker:{color:'#7F77DD'},
+    hovertemplate:'%{x}<br>Campaigns: %{y}<extra></extra>',
+  }], lineLayout('Campaign Activity Over Time','Campaigns Launched'), CFG);
+}
+
+function renderRanking(){
+  const fp = filteredPlatform();
+  const scoreIdx = fp.platforms.map((_,i)=>i).sort((a,b)=>fp.score[a]-fp.score[b]);
+
+  Plotly.newPlot('ch-score',[{
+    type:'bar', orientation:'h',
+    y:scoreIdx.map(i=>fp.platforms[i]),
+    x:scoreIdx.map(i=>fp.score[i]),
+    marker:{color:scoreIdx.map(i=>c(fp.platforms)[i])},
+    text:scoreIdx.map(i=>fp.score[i].toFixed(4)), textposition:'outside',
+    hovertemplate:'%{y}<br>Score: %{x:.4f}<extra></extra>',
+  }],{...LAY, height:400, showlegend:false,
+      xaxis:{...GRID, title:'Composite Score', range:[0,1]},
+      yaxis:GRID,
+      title:{text:'Platform Performance Score',font:{size:14,weight:600}}},CFG);
+
+  // Rank table
+  const tbl = document.getElementById('rank-tbl');
+  const ranked = fp.platforms.map((p,i)=>({p,s:fp.score[i],cr:fp.cr[i],cpa:fp.cpa[i]}))
+                             .sort((a,b)=>b.s-a.s);
+  tbl.innerHTML = `<tr>
+    <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Rank</th>
+    <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Platform</th>
+    <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Score</th>
+    <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">CR %</th>
+    <th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e0e6ef;font-size:11px;text-transform:uppercase;letter-spacing:.4px">CPA</th>
+  </tr>` + ranked.map((r,i)=>`<tr>
+    <td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;font-weight:600;color:#888">${i+1}</td>
+    <td style="padding:9px 10px;border-bottom:1px solid #f0f0f0"><span class="plat-dot" style="background:${PAL[r.p]||'#888'}"></span>${r.p}</td>
+    <td style="padding:9px 10px;border-bottom:1px solid #f0f0f0;font-weight:600;color:${PAL[r.p]||'#888'}">${r.s.toFixed(4)}</td>
+    <td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">${r.cr.toFixed(2)}%</td>
+    <td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">$${r.cpa.toFixed(2)}</td>
+  </tr>`).join('');
+
+  // Duration
+  const durColors = ['#B5D4F4','#85B7EB','#378ADD','#185FA5','#0C447C'];
+  Plotly.newPlot('ch-dur',[{
+    type:'bar', x:D.dur_labels, y:D.dur_avg_conv,
+    marker:{color:durColors},
+    text:D.dur_avg_conv.map(v=>v.toString()), textposition:'outside',
+    hovertemplate:'%{x}<br>Avg Conversions: %{y}<extra></extra>',
+  }],{...LAY, height:360, showlegend:false,
+      xaxis:GRID, yaxis:{...GRID,title:'Avg Conversions / Campaign'},
+      title:{text:'Avg Conversions by Campaign Duration',font:{size:14,weight:600}}},CFG);
+
+  // Efficiency scatter
+  Plotly.newPlot('ch-eff',[{
+    type:'scatter', mode:'markers+text',
+    x:fp.cpa, y:fp.cr, text:fp.platforms,
+    textposition:'top center',
+    marker:{size:fp.conversions ? fp.score.map(s=>16+s*30) : 20,
+            color:c(fp.platforms), opacity:.85,
+            line:{color:'white',width:1.5}},
+    hovertemplate:'%{text}<br>CPA: $%{x:.2f}<br>CR: %{y:.2f}%<extra></extra>',
+  }],{...LAY, height:360,
+      xaxis:{...GRID, title:'CPA ($)'},
+      yaxis:{...GRID, title:'Conversion Rate (%)'},
+      title:{text:'Efficiency Map: CR vs CPA',font:{size:14,weight:600}}},CFG);
+}
+
+// ── KPI updater ──────────────────────────────────────────────────────────────
+function updateKPIs(){
+  const fp = filteredPlatform();
+  const totalConv = fp.conversions.reduce((a,b)=>a+b,0);
+  const totalCost = fp.cost.reduce((a,b)=>a+b,0);
+  const totalCamp = fp.campaigns.reduce((a,b)=>a+b,0);
+  document.getElementById('kv-camp').textContent = totalCamp.toLocaleString();
+  document.getElementById('kv-conv').textContent = (totalConv/1e6).toFixed(2)+'M';
+  document.getElementById('kv-cost').textContent = '$'+(totalCost/1e6).toFixed(1)+'M';
+  // clicks & CR from ratio (approximate with overall data since we don't filter clicks)
+  const crSum = fp.cr.reduce((a,b)=>a+b,0) / fp.cr.length;
+  document.getElementById('kv-cr').textContent = crSum.toFixed(2)+'%';
+  const cpaAvg = fp.cpa.reduce((a,b)=>a+b,0) / fp.cpa.length;
+  document.getElementById('kv-cpa').textContent = '$'+cpaAvg.toFixed(2);
+}
+
+// ── Tab navigation ───────────────────────────────────────────────────────────
+const TAB_PAGES = {overview:'page-overview',perf:'page-perf',trend:'page-trend',rank:'page-rank',insights:'page-insights'};
+let activeTab = 'overview';
+
+function showTab(id, btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(TAB_PAGES[id]).classList.add('active');
+  activeTab = id;
+  renderActive();
+}
+
+function renderActive(){
+  if(activeTab==='overview') { updateKPIs(); renderOverview(); }
+  else if(activeTab==='perf')  renderPerf();
+  else if(activeTab==='trend') renderTrend();
+  else if(activeTab==='rank')  renderRanking();
+}
+
+// ── Filter handlers ───────────────────────────────────────────────────────────
+document.getElementById('sel-platform').addEventListener('change', function(){
+  const v = this.value;
+  activePlatforms = (v==='all') ? [...D.platforms] : [v];
+  renderActive();
+});
+
+document.getElementById('sel-date').addEventListener('change', function(){
+  activeDateRange = this.value;
+  renderActive();
+});
+
+function resetFilters(){
+  document.getElementById('sel-platform').value = 'all';
+  document.getElementById('sel-date').value = 'all';
+  activePlatforms = [...D.platforms];
+  activeDateRange = 'all';
+  renderActive();
+}
+
+// ── Initial render ────────────────────────────────────────────────────────────
+updateKPIs();
+renderOverview();
+</script>
+</body>
+</html>
